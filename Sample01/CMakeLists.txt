@@ -1,0 +1,119 @@
+cmake_minimum_required(VERSION 3.16)
+project(Sample01 LANGUAGES CXX)
+
+# 启用Unity Build (CMake 3.16+)
+set(CMAKE_UNITY_BUILD ON)  # 可选：设置整个项目启用Unity Build
+set(CMAKE_UNITY_BUILD_BATCH_SIZE 8)  # 每个统一文件包含的源文件数
+
+# 设置并行编译
+if(MSVC)
+    add_compile_options(/MP)  # MSVC的并行编译选项
+endif()
+
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
+
+# 全局配置
+set(CMAKE_CXX_STANDARD 17) # OCCT需要C++14/17，提升版本
+set(CMAKE_CXX_STANDARD_REQUIRED ON) # 强制使用指定标准
+set(CMAKE_AUTOMOC ON) # 必须启用：自动处理Qt的moc
+set(CMAKE_AUTORCC ON) # 自动处理资源文件
+set(CMAKE_AUTOUIC ON) # 自动处理UI文件
+set(CMAKE_INCLUDE_CURRENT_DIR ON)  # 包含当前目录
+
+# 设置Qt和OCCT路径
+set(Qt5_DIR "D:/tools/QT/5.14.2/msvc2017_64/lib/cmake/Qt5")
+set(OCCT_INCLUDE_DIR "D:/tools/occt-vc144-64/inc")
+set(OCCT_LIB_DIR "D:/tools/occt-vc144-64/win64/vc14/lib")
+
+# 查找Qt组件
+find_package(Qt5 REQUIRED COMPONENTS
+  Core
+  Gui
+  Widgets
+)
+
+# 定义OCCT核心库
+set(OCCT_LIBS
+  TKernel
+  TKMath
+  TKG2d
+  TKG3d
+  TKBRep
+  TKGeomBase
+  TKGeomAlgo
+  TKHLR
+  TKFillet
+  TKOffset
+  TKFeat
+  TKStd
+  TKTopAlgo
+  TKService
+  TKV3d
+  TKOpenGl
+  TKMesh
+  TKShHealing
+  TKPrim
+  TKBO
+  TKBool
+  TKCAF
+  TKCDF
+  TKXCAF
+  TKXSBase
+  TKLCAF
+  TKBinL
+  TKXmlL
+  TKBin
+  TKXml
+  TKDEIGES
+  TKXSDRAWIGES
+  TKDESTEP
+  TKXSDRAWSTEP
+  TKXSDRAWSTL
+  TKDESTL
+  TKXSDRAWVRML
+  TKDEVRML
+  TKXSDRAWGLTF
+  TKDEGLTF
+  TKRWMesh
+)
+
+# 添加可执行文件
+set(SOURCES
+    main.cpp
+    MainWindow.cpp
+    core/Viewport.cpp
+)
+
+# 创建可执行文件
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+# 包含目录
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${OCCT_INCLUDE_DIR} # OCCT头文件
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# 指定库搜索路径
+target_link_directories(${PROJECT_NAME} PRIVATE
+  ${OCCT_LIB_DIR}
+)
+
+# 链接库（统一使用关键字签名）
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  Qt5::Core
+  Qt5::Gui
+  Qt5::Widgets
+  ${OCCT_LIBS} # OCCT库列表
+  ${OpenCASCADE_LIBRARIES} # OpenCASCADE库
+)
+
+# 设置C++标准
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)
+
+# 安装目标
+install(TARGETS ${PROJECT_NAME} DESTINATION bin) 
