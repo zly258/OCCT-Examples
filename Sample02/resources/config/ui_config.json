@@ -1,0 +1,46 @@
+{
+    "menus": {
+        "create": {
+            "text": "创建(&C)",
+            "items": [
+                {
+                    "text": "立方体(&B)",
+                    "action": "CreateBox"
+                },
+                {
+                    "text": "圆柱(&C)",
+                    "action": "CreateCylinder"
+                },
+                {
+                    "text": "圆台(&N)",
+                    "action": "CreateCone"
+                },
+                {
+                    "text": "圆环(&T)",
+                    "action": "CreateTorus"
+                },
+                {
+                    "text": "球体(&S)",
+                    "action": "CreateSphere"
+                },
+                {
+                    "text": "随机测试(&R)",
+                    "action": "RandomTest"
+                }
+            ]
+        },
+        "view": {
+            "text": "视图(&V)",
+            "items": [
+                {
+                    "text": "线框模式(&W)",
+                    "action": "WireframeMode"
+                },
+                {
+                    "text": "着色模式(&S)",
+                    "action": "ShadedMode"
+                }
+            ]
+        }
+    }
+}
