@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QJsonObject>
 #include <TopoDS_Shape.hxx>
-#include <AIS_Shape.hxx>
+#include <Inventor/nodes/SoSeparator.h>
 #include <QDebug>
 #include <gp_Pnt.hxx>
 
@@ -12,6 +12,15 @@ class SimpleEntity : public QObject
 {
     Q_OBJECT
 public:
+    enum Type {
+        Box,
+        Sphere,
+        Cylinder,
+        Cone,
+        Torus,
+        Unknown
+    };
+
     SimpleEntity(QObject *parent = nullptr);
     virtual ~SimpleEntity();
 
@@ -29,8 +38,11 @@ public:
     virtual void serialize(QJsonObject &json) const;
     virtual void deserialize(const QJsonObject &json);
 
-    // 创建 AIS_Shape 对象
-    Handle(AIS_Shape) createAISShape();
+    // 创建Coin3D节点
+    virtual SoSeparator* createSceneGraph() = 0;
+    
+    // 获取实体类型
+    virtual Type type() const = 0;
 
 protected:
     virtual void updateShape() = 0;

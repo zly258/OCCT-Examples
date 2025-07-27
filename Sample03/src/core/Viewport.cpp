@@ -1,35 +1,49 @@
 #include "Viewport.h"
 #include "ViewportManager.h"
-#include <Aspect_DisplayConnection.hxx>
-#include <OpenGl_GraphicDriver.hxx>
-#include <Graphic3d_GraphicDriver.hxx>
-#include <Aspect_NeutralWindow.hxx>
-#include <Quantity_Color.hxx>
-#include <QDebug>
-#include <AIS_InteractiveContext.hxx>
-#include <AIS_Shape.hxx>
-#include <NCollection_List.hxx>
-#include <Graphic3d_TransformPers.hxx>
-#include <Graphic3d_ZLayerId.hxx>
-#include <Quantity_NameOfColor.hxx>
-#include <Aspect_TypeOfLine.hxx>
-#include <QPaintEvent>
-#include <QResizeEvent>
-#include <QApplication>
-#include <Precision.hxx>
-#include <Graphic3d_Vec2.hxx>
 
-Viewport::Viewport(QWidget *parent) : QWidget(parent)
+#include <Inventor/nodes/SoCone.h>
+#include <Inventor/nodes/SoCube.h>
+#include <Inventor/nodes/SoCylinder.h>
+#include <Inventor/nodes/SoSphere.h>
+#include <Inventor/nodes/SoDirectionalLight.h>
+#include <Inventor/nodes/SoPerspectiveCamera.h>
+#include <Inventor/nodes/SoPointLight.h>
+#include <Inventor/nodes/SoCoordinate3.h>
+#include <Inventor/nodes/SoIndexedFaceSet.h>
+#include <Inventor/nodes/SoNormal.h>
+#include <Inventor/nodes/SoNormalBinding.h>
+#include <Inventor/actions/SoSearchAction.h>
+#include <Inventor/actions/SoGetBoundingBoxAction.h>
+#include <Inventor/SbViewportRegion.h>
+
+#include <BRep_Builder.hxx>
+#include <BRepTools.hxx>
+#include <TopoDS.hxx>
+#include <TopoDS_Shape.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopAbs_ShapeEnum.hxx>
+#include <BRepMesh_IncrementalMesh.hxx>
+#include <BRep_Tool.hxx>
+#include <Poly_Triangulation.hxx>
+#include <Poly_Array1OfTriangle.hxx>
+#include <TColgp_Array1OfPnt.hxx>
+#include <gp_Pnt.hxx>
+
+Viewport::Viewport(QWidget *parent)
+    : SoQtExaminerViewer(parent, nullptr, TRUE)
 {
-    // 设置Qt窗口属性
-    setAttribute(Qt::WA_PaintOnScreen);
-    setAttribute(Qt::WA_NoSystemBackground);
-    setFocusPolicy(Qt::StrongFocus);
-    setMouseTracking(true);
+    // 初始化场景
+    initScene();
 
-    // 初始化视图
-    initViewer();
-    initSelectionRect();
+    // 设置背景颜色为灰色
+    setBackgroundColor(SbColor(0.4f, 0.4f, 0.4f));
+
+    // 设置相机类型为透视
+    setStereoViewing(FALSE);
+    setViewing(TRUE);
+    
+    // 设置装饰器（坐标轴等）
+    setDecoration(TRUE);
 }
 
 Viewport::~Viewport()
@@ -37,352 +51,278 @@ Viewport::~Viewport()
     if (ViewportManager::instance()->activeViewport() == this) {
         ViewportManager::instance()->setActiveViewport(nullptr);
     }
-}
-
-void Viewport::focusInEvent(QFocusEvent* event)
-{
-    QWidget::focusInEvent(event);
-    ViewportManager::instance()->setActiveViewport(this);
-}
-
-void Viewport::initViewer()
-{
-    // 创建显示连接和图形驱动
-    Handle(Aspect_DisplayConnection) displayConnection = new Aspect_DisplayConnection();
-    Handle(Graphic3d_GraphicDriver) graphicDriver = new OpenGl_GraphicDriver(displayConnection);
-
-    // 创建查看器
-    m_viewer = new V3d_Viewer(graphicDriver);
-    m_viewer->SetDefaultViewSize(1000.);
-    m_viewer->SetDefaultViewProj(V3d_XnegYnegZpos);
-    m_viewer->SetDefaultLights();
-    m_viewer->SetLightOn();
-
-    // 创建视图
-    m_view = m_viewer->CreateView();
-    m_view->SetImmediateUpdate(Standard_True);
-
-    // 创建窗口并绑定Qt窗口句柄
-    m_window = new Aspect_NeutralWindow();
-    m_window->SetNativeHandles((Aspect_Drawable)winId(), 0, 0);
-    m_window->SetSize(width(), height());
-    m_view->SetWindow(m_window);
-    if (!m_window->IsMapped()) {
-        m_window->Map();
+    
+    // 释放场景图
+    if (m_sceneRoot) {
+        m_sceneRoot->unref();
     }
-
-    // 创建交互上下文
-    m_context = new AIS_InteractiveContext(m_viewer);
-    m_context->SetPixelTolerance(10);
-    Quantity_Color backgroundColor(0.4, 0.4, 0.4, Quantity_TOC_RGB);  // 灰色背景
-    m_view->SetBackgroundColor(backgroundColor);
-    m_view->MustBeResized();  // 确保视图调整大小
-    m_view->FitAll();         // 确保视图显示所有内容
-}
-
-void Viewport::initSelectionRect()
-{
-    Quantity_Color yellowColor(1.0, 1.0, 0.0, Quantity_TOC_RGB);  // 黄色
-    m_selectionRect = new AIS_RubberBand(yellowColor, Aspect_TOL_DASH);
-    m_selectionRect->SetTransformPersistence(
-        new Graphic3d_TransformPers(Graphic3d_TMF_2d, Aspect_TOTP_LEFT_LOWER));
-    m_selectionRect->SetZLayer(Graphic3d_ZLayerId_TopOSD);
-}
-
-void Viewport::paintEvent(QPaintEvent *event)
-{
-    if (!m_view.IsNull()) {
-        m_view->Redraw();
+    if (m_selection) {
+        m_selection->unref();
     }
-    QWidget::paintEvent(event);
-}
-
-void Viewport::resizeEvent(QResizeEvent *event)
-{
-    if (!m_view.IsNull() && !m_window.IsNull()) {
-        m_window->SetSize(event->size().width(), event->size().height());
-        m_view->MustBeResized();
+    if (m_eventCallback) {
+        m_eventCallback->unref();
     }
-    update();
-    QWidget::resizeEvent(event);
 }
 
-void Viewport::mousePressEvent(QMouseEvent *event)
+void Viewport::initScene()
 {
-    setFocus(); // 确保点击时获得焦点
+    // 创建场景根节点
+    m_sceneRoot = new SoSeparator;
+    m_sceneRoot->ref();
 
-    // 处理中键操作
-    if (event->button() == Qt::MiddleButton) {
-        if (event->modifiers() & Qt::ShiftModifier) {
-            m_view->StartRotation(event->pos().x(), event->pos().y());
-            m_isRotating = true;
-            setCursor(Qt::ClosedHandCursor); // 设置旋转光标
-            return;
-        } else {
-            m_isPanning = true;
-            setCursor(Qt::SizeAllCursor); // 设置平移光标
-            m_lastMousePos = event->pos();
-            return;
+    // 创建光源
+    SoDirectionalLight* light = new SoDirectionalLight;
+    light->direction.setValue(0.5f, 0.5f, -1.0f);
+    m_sceneRoot->addChild(light);
+
+    // 创建选择节点
+    m_selection = new SoSelection;
+    m_selection->ref();
+    m_selection->policy = SoSelection::SINGLE;
+    m_selection->addSelectionCallback(selectionCB, this);
+    m_sceneRoot->addChild(m_selection);
+
+    // 创建事件回调节点
+    m_eventCallback = new SoEventCallback;
+    m_eventCallback->ref();
+    m_eventCallback->addEventCallback(
+        SoMouseButtonEvent::getClassTypeId(),
+        mousePressCB,
+        this);
+    m_selection->addChild(m_eventCallback);
+
+    // 设置场景
+    setSceneGraph(m_sceneRoot);
+}
+
+void Viewport::selectionCB(void* userData, SoPath* path)
+{
+    Viewport* viewport = static_cast<Viewport*>(userData);
+    if (!viewport || !path) return;
+
+    // 这里可以处理选择回调
+    // 例如高亮显示选中的对象
+    SoNode* node = path->getTail();
+    if (node) {
+        // 处理选中的节点
+    }
+}
+
+void Viewport::mousePressCB(void* userData, SoEventCallback* cb)
+{
+    Viewport* viewport = static_cast<Viewport*>(userData);
+    if (!viewport) return;
+
+    const SoEvent* event = cb->getEvent();
+    if (!event) return;
+
+    if (event->isOfType(SoMouseButtonEvent::getClassTypeId())) {
+        const SoMouseButtonEvent* mbe = static_cast<const SoMouseButtonEvent*>(event);
+        if (mbe->getButton() == SoMouseButtonEvent::BUTTON1 && 
+            mbe->getState() == SoButtonEvent::DOWN) {
+            // 处理鼠标点击事件
+            const SoPickedPoint* pick = cb->getPickedPoint();
+            if (pick) {
+                // 处理拾取点
+            }
         }
     }
-
-    // 处理左键选择
-    if (event->button() == Qt::LeftButton) {
-        if (!(event->modifiers() & Qt::ShiftModifier)) {
-            m_selectStartPos = event->pos();
-            m_isMultiSelecting = true;
-            return;
-        }
-    }
-
-    m_lastMousePos = event->pos();
-}
-
-void Viewport::mouseMoveEvent(QMouseEvent *event)
-{
-    if (!event || m_view.IsNull() || m_context.IsNull()) {
-        return;
-    }
-
-    setFocus(); // 确保移动时获得焦点
-
-    // 获取鼠标位置
-    const QPoint pos = event->pos();
-    gp_Pnt worldPoint = convertWithProj(pos);
-
-    if (m_isPanning) {
-        const int dx = (event->x() - m_lastMousePos.x());
-        const int dy = (m_lastMousePos.y() - event->y());
-        m_view->Pan(dx, dy);
-        m_lastMousePos = event->pos();
-        return;
-    }
-
-    if (m_isRotating) {
-        m_view->Rotation(event->x(), event->y());
-        m_lastMousePos = event->pos();
-        return;
-    }
-
-    // 移动触发高亮
-    m_context->MoveTo(pos.x(), pos.y(), m_view, Standard_True);
-
-    // 框选预览
-    if (m_isMultiSelecting) {
-        previewSelectionRect(event->pos());
-        return;
-    }
-}
-
-void Viewport::mouseReleaseEvent(QMouseEvent *event)
-{
-    if (m_isPanning || m_isRotating) {
-        setCursor(Qt::ArrowCursor);
-    }
-    m_isPanning = false;
-    m_isRotating = false;
-
-    if (m_isMultiSelecting) {
-        finishSelection(event->pos());
-        m_isMultiSelecting = false;
-        return;
-    }
-}
-
-void Viewport::wheelEvent(QWheelEvent *event)
-{
-    m_view->StartZoomAtPoint(event->x(), event->y());
-    // 缩放灵敏度
-    double zoomSensitivity = 0.2;
-    zoomSensitivity = qMin(qMax(0.2, zoomSensitivity), 0.8);
-    m_view->ZoomAtPoint(0, 0, event->angleDelta().y() * zoomSensitivity, 0);
 }
 
 void Viewport::fitAll()
 {
-    if (!m_view.IsNull()) {
-        m_view->FitAll();
-        m_view->ZFitAll();
-        m_view->Redraw();
+    viewAll();
+}
+
+void Viewport::zoom(float delta)
+{
+    // Coin3D的ExaminerViewer已经处理了缩放
+}
+
+void Viewport::rotate(float x, float y)
+{
+    // Coin3D的ExaminerViewer已经处理了旋转
+}
+
+void Viewport::pan(float x, float y)
+{
+    // Coin3D的ExaminerViewer已经处理了平移
+}
+
+void Viewport::clearAllEntities()
+{
+    // 清除所有实体
+    while (m_selection->getNumChildren() > 1) {  // 保留事件回调节点
+        m_selection->removeChild(1);
     }
+    m_simpleEntities.clear();
+}
+
+void Viewport::displaySimpleEntity(SimpleEntity* entity)
+{
+    if (!entity) return;
+
+    // 创建一个新的分隔节点
+    SoSeparator* sep = new SoSeparator;
+    
+    // 添加材质
+    SoMaterial* mat = new SoMaterial;
+    mat->diffuseColor.setValue(0.8f, 0.8f, 0.8f);
+    sep->addChild(mat);
+
+    // 添加变换
+    SoTransform* transform = new SoTransform;
+    // 设置变换参数...
+    sep->addChild(transform);
+
+    // 根据实体类型添加几何体
+    switch (entity->type()) {
+        case SimpleEntity::Box: {
+            SoCube* cube = new SoCube;
+            // 设置尺寸...
+            sep->addChild(cube);
+            break;
+        }
+        case SimpleEntity::Sphere: {
+            SoSphere* sphere = new SoSphere;
+            // 设置半径...
+            sep->addChild(sphere);
+            break;
+        }
+        case SimpleEntity::Cylinder: {
+            SoCylinder* cylinder = new SoCylinder;
+            // 设置参数...
+            sep->addChild(cylinder);
+            break;
+        }
+        // 添加其他类型...
+    }
+
+    // 将分隔节点添加到选择节点
+    m_selection->addChild(sep);
+    m_simpleEntities.append(entity);
 }
 
 void Viewport::setDisplayMode(int mode)
 {
-    if (!m_context.IsNull()) {
-        m_context->SetDisplayMode(mode, Standard_True);
-        m_view->Redraw();
+    // 在Coin3D中设置显示模式
+    // 可以通过材质属性来实现不同的显示效果
+}
+
+void Viewport::displayShape(const TopoDS_Shape& shape)
+{
+    if (shape.IsNull()) return;
+
+    // 将OCCT形状转换为Inventor节点
+    SoSeparator* shapeSep = convertShapeToInventor(shape);
+    if (shapeSep) {
+        m_selection->addChild(shapeSep);
     }
 }
 
-void Viewport::displayEntity(const Handle(AIS_Shape)& entity)
+void Viewport::displayShapes(const QList<TopoDS_Shape>& shapes)
 {
-    if (!m_context.IsNull()) {
-        m_context->Display(entity, Standard_True);
-        m_view->Redraw();
+    for (const TopoDS_Shape& shape : shapes) {
+        displayShape(shape);
     }
 }
 
-void Viewport::displayEntities(const QList<Handle(AIS_Shape)>& entities)
+SoSeparator* Viewport::convertShapeToInventor(const TopoDS_Shape& shape)
 {
-    if (!m_context.IsNull()) {
-        // 遍历所有实体并显示
-        for (const Handle(AIS_Shape)& entity : entities) {
-            if (!entity.IsNull()) {
-                m_context->Display(entity, Standard_False);
+    if (shape.IsNull()) return nullptr;
+
+    // 创建一个新的分隔节点
+    SoSeparator* sep = new SoSeparator;
+    
+    // 添加材质
+    SoMaterial* mat = new SoMaterial;
+    mat->diffuseColor.setValue(0.8f, 0.8f, 0.8f);
+    sep->addChild(mat);
+
+    // 对OCCT形状进行三角化
+    BRepMesh_IncrementalMesh mesh(shape, 0.1); // 0.1是网格精度
+
+    // 遍历所有面
+    TopExp_Explorer explorer(shape, TopAbs_FACE);
+    for (; explorer.More(); explorer.Next()) {
+        const TopoDS_Face& face = TopoDS::Face(explorer.Current());
+        
+        // 获取三角化数据
+        TopLoc_Location loc;
+        Handle(Poly_Triangulation) triangulation = BRep_Tool::Triangulation(face, loc);
+        
+        if (triangulation.IsNull()) continue;
+
+        // 创建坐标节点
+        SoCoordinate3* coords = new SoCoordinate3;
+        SoIndexedFaceSet* faceSet = new SoIndexedFaceSet;
+        
+        // 获取顶点数据
+        const TColgp_Array1OfPnt& nodes = triangulation->Nodes();
+        const Poly_Array1OfTriangle& triangles = triangulation->Triangles();
+        
+        // 设置顶点坐标
+        coords->point.setNum(nodes.Length());
+        for (Standard_Integer i = nodes.Lower(); i <= nodes.Upper(); i++) {
+            gp_Pnt p = nodes(i).Transformed(loc);
+            coords->point.set1Value(i-1, p.X(), p.Y(), p.Z());
+        }
+        
+        // 设置三角形索引
+        int numTriangles = triangles.Length();
+        faceSet->coordIndex.setNum(numTriangles * 4); // 每个三角形4个索引（3个顶点+分隔符-1）
+        
+        int idx = 0;
+        for (Standard_Integer i = triangles.Lower(); i <= triangles.Upper(); i++) {
+            Standard_Integer n1, n2, n3;
+            triangles(i).Get(n1, n2, n3);
+            
+            // 考虑面的方向
+            if (face.Orientation() == TopAbs_REVERSED) {
+                faceSet->coordIndex.set1Value(idx++, n1-1);
+                faceSet->coordIndex.set1Value(idx++, n3-1);
+                faceSet->coordIndex.set1Value(idx++, n2-1);
+            } else {
+                faceSet->coordIndex.set1Value(idx++, n1-1);
+                faceSet->coordIndex.set1Value(idx++, n2-1);
+                faceSet->coordIndex.set1Value(idx++, n3-1);
             }
+            faceSet->coordIndex.set1Value(idx++, -1); // 三角形分隔符
         }
-        // 更新视图
-        m_view->Redraw();
-    }
-}
-
-void Viewport::previewSelectionRect(const QPoint &pos)
-{
-    m_selectEndPos = pos;
-    // 更新框选矩形
-    if (!m_selectionRect.IsNull()) {
-        Standard_Integer xMin = qMin(m_selectStartPos.x(), m_selectEndPos.x());
-        Standard_Integer xMax = qMax(m_selectStartPos.x(), m_selectEndPos.x());
         
-        // 转换Y坐标（Qt和OCCT的Y轴方向相反）
-        Standard_Integer height = this->height();
-        Standard_Integer yMin = height - qMax(m_selectStartPos.y(), m_selectEndPos.y());
-        Standard_Integer yMax = height - qMin(m_selectStartPos.y(), m_selectEndPos.y());
+        // 添加法线
+        SoNormal* normals = new SoNormal;
+        SoNormalBinding* normalBinding = new SoNormalBinding;
+        normalBinding->value = SoNormalBinding::PER_FACE;
         
-        if (fabs(yMax - yMin) < Precision::Confusion()) return;
-        if (fabs(xMax - xMin) < Precision::Confusion()) return;
-        
-        m_selectionRect->SetRectangle(xMin, yMin, xMax, yMax);
-        
-        if (!m_context->IsDisplayed(m_selectionRect)) {
-            m_context->Display(m_selectionRect, Standard_False);
-        } else {
-            m_context->Redisplay(m_selectionRect, Standard_False);
-        }
-        m_view->Redraw();
-    }
-}
-
-void Viewport::finishSelection(const QPoint &endPos)
-{
-    // 移除框选矩形
-    if (!m_selectionRect.IsNull() && m_context->IsDisplayed(m_selectionRect)) {
-        m_context->Remove(m_selectionRect, Standard_False);
-    }
-
-    // 如果拖动距离太小，当作点选处理
-    if ((endPos - m_selectStartPos).manhattanLength() <= 3) {
-        handleSingleSelection(endPos);
-    } else {
-        // 否则作为框选处理
-        handleAreaSelection(m_selectStartPos, endPos);
-    }
-
-    // 更新显示
-    m_view->Redraw();
-}
-
-void Viewport::handleSingleSelection(const QPoint &pos)
-{
-    m_context->MoveTo(pos.x(), pos.y(), m_view, Standard_True);
-
-    bool isCtrl = QApplication::keyboardModifiers() & Qt::ControlModifier;
-    AIS_SelectionScheme scheme = isCtrl ? AIS_SelectionScheme_Add : AIS_SelectionScheme_Replace;
-
-    if (m_context->HasDetected()) {
-        m_context->SelectDetected(scheme);
-    } else {
-        if (!isCtrl)
-            m_context->ClearSelected(Standard_True);
-    }
-
-    m_context->UpdateCurrentViewer();
-}
-
-void Viewport::handleAreaSelection(const QPoint &p1, const QPoint &p2)
-{
-    Standard_Integer xMin = qMin(p1.x(), p2.x());
-    Standard_Integer xMax = qMax(p1.x(), p2.x());
-    Standard_Integer yMin = qMin(p1.y(), p2.y());
-    Standard_Integer yMax = qMax(p1.y(), p2.y());
-    bool isCtrl = QApplication::keyboardModifiers() & Qt::ControlModifier;
-
-    // 确保选择区域有效
-    if (xMax - xMin < 2 || yMax - yMin < 2) return;
-
-    m_context->SelectRectangle(Graphic3d_Vec2i(xMin, yMin), Graphic3d_Vec2i(xMax, yMax), m_view,
-                               isCtrl ? AIS_SelectionScheme_Add : AIS_SelectionScheme_Replace);
-    m_context->UpdateCurrentViewer();
-}
-
-gp_Pnt Viewport::convertWithProj(const QPoint &clickPos) const
-{
-    if (m_view.IsNull())
-        return gp_Pnt();
-
-    // 转换为3D点和射线方向
-    Standard_Real X, Y, Z;    // 投影点坐标
-    Standard_Real Vx, Vy, Vz; // 射线方向向量
-    
-    // 使用OCCT的ConvertWithProj方法进行转换
-    m_view->ConvertWithProj(clickPos.x(), clickPos.y(), X, Y, Z, Vx, Vy, Vz);
-    
-    // 创建并返回投影点
-    return gp_Pnt(X, Y, Z);
-}
-
-QList<Handle(AIS_Shape)> Viewport::getAllAISShapes() const
-{
-    QList<Handle(AIS_Shape)> shapes;
-    
-    if (!m_context.IsNull()) {
-        // 获取所有显示的交互对象
-        AIS_ListOfInteractive displayedObjects;
-        m_context->DisplayedObjects(displayedObjects);
-        
-        // 遍历并筛选
-        for (AIS_ListOfInteractive::Iterator it(displayedObjects); it.More(); it.Next()) {
-            if (Handle(AIS_Shape) shape = Handle(AIS_Shape)::DownCast(it.Value())) {
-                shapes.append(shape);
+        // 计算每个面的法线
+        normals->vector.setNum(numTriangles);
+        for (Standard_Integer i = 0; i < numTriangles; i++) {
+            Standard_Integer n1, n2, n3;
+            triangles(i+1).Get(n1, n2, n3);
+            
+            gp_Pnt p1 = nodes(n1).Transformed(loc);
+            gp_Pnt p2 = nodes(n2).Transformed(loc);
+            gp_Pnt p3 = nodes(n3).Transformed(loc);
+            
+            gp_Vec v1(p1, p2);
+            gp_Vec v2(p1, p3);
+            gp_Vec normal = v1.Crossed(v2);
+            normal.Normalize();
+            
+            if (face.Orientation() == TopAbs_REVERSED) {
+                normal.Reverse();
             }
+            
+            normals->vector.set1Value(i, normal.X(), normal.Y(), normal.Z());
         }
-    } else {
-        qDebug() << "Context is null!";
-    }
-    
-    qDebug() << "Total shapes found:" << shapes.size();
-    return shapes;
-} 
-
-void Viewport::clearAllEntities() {
-    if (!m_context.IsNull()) {
-        // 1. 移除所有 AIS_Shape 对象
-        m_context->RemoveAll(Standard_True);
         
-        // 2. 清理 SimpleEntity 对象
-        for (SimpleEntity* entity : m_simpleEntities) {
-            delete entity; // 释放内存
-        }
-        m_simpleEntities.clear();
-        
-        // 3. 刷新视图
-        m_view->Redraw();
-    }
-}
-
-void Viewport::displaySimpleEntity(SimpleEntity* entity) {
-    if (!entity || m_context.IsNull()) {
-        return;
+        // 将所有节点添加到分隔节点
+        sep->addChild(normalBinding);
+        sep->addChild(normals);
+        sep->addChild(coords);
+        sep->addChild(faceSet);
     }
 
-    // 1. 保存 SimpleEntity 对象
-    m_simpleEntities.append(entity);
-
-    // 2. 创建并显示 AIS_Shape
-    Handle(AIS_Shape) aisShape = entity->createAISShape();
-    if (!aisShape.IsNull()) {
-        m_context->Display(aisShape, Standard_True);
-        m_view->Redraw();
-    }
+    return sep;
 }

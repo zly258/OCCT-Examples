@@ -27,7 +27,17 @@ set(Qt5_DIR "D:/tools/QT/5.14.2/msvc2017_64/lib/cmake/Qt5")
 set(OCCT_INCLUDE_DIR "D:/tools/occt-vc144-64/inc")
 set(OCCT_LIB_DIR "D:/tools/occt-vc144-64/win64/vc14/lib")
 
-# 查找Qt组件
+# 设置Coin3D和SoQt路径（根据您的实际下载位置修改）
+set(COIN3D_ROOT "D:/tools/Coin3D")  # 修改为您的Coin3D安装路径
+set(SOQT_ROOT "D:/tools/SoQt")      # 修改为您的SoQt安装路径
+
+# 设置Coin3D和SoQt的包含目录和库目录
+set(COIN3D_INCLUDE_DIR "${COIN3D_ROOT}/include")
+set(COIN3D_LIB_DIR "${COIN3D_ROOT}/lib")
+set(SOQT_INCLUDE_DIR "${SOQT_ROOT}/include")
+set(SOQT_LIB_DIR "${SOQT_ROOT}/lib")
+
+# 查找Qt包
 find_package(Qt5 REQUIRED COMPONENTS
     Core
     Gui
@@ -131,11 +141,15 @@ add_executable(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${OCCT_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${COIN3D_INCLUDE_DIR}
+    ${SOQT_INCLUDE_DIR}
 )
 
 # 指定库搜索路径
 target_link_directories(${PROJECT_NAME} PRIVATE
     ${OCCT_LIB_DIR}
+    ${COIN3D_LIB_DIR}
+    ${SOQT_LIB_DIR}
 )
 
 # 链接库
@@ -144,6 +158,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Gui
     Qt5::Widgets
     ${OCCT_LIBS}
+    # Coin3D和SoQt库
+    optimized Coin4.lib debug Coin4d.lib
+    optimized SoQt1.6.0.lib debug SoQt1.6.0d.lib
 )
 
 # 设置C++标准
@@ -153,4 +170,18 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 # 安装目标
-install(TARGETS ${PROJECT_NAME} DESTINATION bin) 
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+# 复制必要的DLL到输出目录
+if(MSVC)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        # 复制Coin3D DLL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${COIN3D_ROOT}/bin/$<$<CONFIG:Debug>:Coin4d.dll>$<$<CONFIG:Release>:Coin4.dll>"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        # 复制SoQt DLL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SOQT_ROOT}/bin/$<$<CONFIG:Debug>:SoQt1.6.0d.dll>$<$<CONFIG:Release>:SoQt1.6.0.dll>"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif() 

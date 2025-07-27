@@ -1,4 +1,6 @@
 #include "BoxEntity.h"
+#include <Inventor/nodes/SoTransform.h>
+#include <Inventor/nodes/SoMaterial.h>
 
 BoxEntity::BoxEntity(QObject *parent) : SimpleEntity(parent), m_width(0), m_height(0), m_depth(0) {}
 
@@ -34,4 +36,28 @@ void BoxEntity::deserialize(const QJsonObject &json) {
         m_depth = json["depth"].toDouble();
         updateShape();
     }
+}
+
+SoSeparator* BoxEntity::createSceneGraph() {
+    // 创建一个新的分隔节点
+    SoSeparator* sep = new SoSeparator;
+    
+    // 添加变换节点
+    SoTransform* transform = new SoTransform;
+    transform->translation.setValue(m_x, m_y, m_z);
+    sep->addChild(transform);
+    
+    // 添加材质
+    SoMaterial* mat = new SoMaterial;
+    mat->diffuseColor.setValue(0.8f, 0.8f, 0.8f);  // 灰色
+    sep->addChild(mat);
+    
+    // 创建盒子几何体
+    SoCube* cube = new SoCube;
+    cube->width = m_width;
+    cube->height = m_height;
+    cube->depth = m_depth;
+    sep->addChild(cube);
+    
+    return sep;
 }

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <Inventor/Qt/SoQt.h>
 
 class QAction;
 class QMenu;

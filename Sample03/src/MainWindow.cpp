@@ -17,6 +17,9 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_viewport(nullptr)
 {
+    // 初始化Coin3D
+    SoQt::init(this);
+
     setupUi();
 
     // 连接信号槽
@@ -28,6 +31,8 @@ MainWindow::MainWindow(QWidget* parent)
 
 MainWindow::~MainWindow()
 {
+    // 清理Coin3D
+    SoQt::done();
 }
 
 void MainWindow::setupUi()
@@ -46,7 +51,7 @@ void MainWindow::setupUi()
     
     // 创建并添加视口
     createViewport();
-    layout->addWidget(m_viewport);
+    layout->addWidget(m_viewport->getWidget());
     
     // 创建其他UI元素
     createActions();

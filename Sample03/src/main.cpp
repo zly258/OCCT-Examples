@@ -1,6 +1,7 @@
 #include <QApplication>
 #include "MainWindow.h"
 #include "actions/ActionManager.h"
+#include <Inventor/Qt/SoQt.h>
 
 int main(int argc, char *argv[])
 {

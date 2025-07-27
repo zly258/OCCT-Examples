@@ -3,6 +3,7 @@
 
 #include "core/SimpleEntity.h"
 #include <BRepPrimAPI_MakeBox.hxx>
+#include <Inventor/nodes/SoCube.h>
 
 class BoxEntity : public SimpleEntity
 {
@@ -17,6 +18,14 @@ public:
     // 序列化与反序列化
     void serialize(QJsonObject &json) const override;
     void deserialize(const QJsonObject &json) override;
+    
+    // 创建场景图
+    SoSeparator* createSceneGraph() override;
+    
+    // 获取类型
+    Type type() const override { return Box; }
+
+protected:
     void updateShape() override;
 
 private:
