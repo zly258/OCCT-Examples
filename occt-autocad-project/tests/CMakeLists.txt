@@ -19,8 +19,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(catch2)
 
+# Fetch nlohmann/json for serialization
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 add_executable(TestOCCT ${TEST_SOURCES})
 target_include_directories(TestOCCT PRIVATE ${catch2_SOURCE_DIR}/single_include)
+target_link_libraries(TestOCCT PRIVATE nlohmann_json::nlohmann_json)
 
 enable_testing()
 add_test(NAME TestOCCT COMMAND TestOCCT)

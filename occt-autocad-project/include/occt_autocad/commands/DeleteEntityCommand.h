@@ -22,11 +22,9 @@ public:
 
     void undo() override {
         if (m_saved.empty()) return;
-        // recreate entity as SimpleEntity and deserialize state
-        auto e = m_db.createEntity<db::SimpleEntity>();
+        // recreate entity with original id and deserialize state
+        auto e = m_db.createEntityWithId<db::SimpleEntity>(m_id);
         e->deserialize(m_saved);
-        // ensure id restored
-        // Note: createEntity generates a new id; for now we accept new id but keep saved id in m_id
     }
 
 private:

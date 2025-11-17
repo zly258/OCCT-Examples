@@ -30,6 +30,11 @@ TEST_CASE("Entity lifecycle with Document CommandManager", "[entity_commands]") 
     REQUIRE(pos.first == Approx(10.0));
     REQUIRE(pos.second == Approx(5.0));
 
+    // Rotate entity by 45 degrees
+    auto rotCmd = std::make_shared<RotateEntityCommand>(doc.database(), id, 45.0);
+    doc.executeCommand(rotCmd);
+    REQUIRE(e->rotation() == Approx(45.0));
+
     // Modify layer
     auto modCmd = std::make_shared<ModifyEntityCommand>(doc.database(), id, std::string("layer"), std::string("Layer1"));
     doc.executeCommand(modCmd);

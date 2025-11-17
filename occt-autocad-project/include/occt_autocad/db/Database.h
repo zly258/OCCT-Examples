@@ -24,6 +24,14 @@ public:
         return e;
     }
 
+    // Create entity with a specific id (T must support constructor taking id)
+    template<typename T>
+    std::shared_ptr<T> createEntityWithId(const std::string& id) {
+        auto e = std::make_shared<T>(id);
+        m_entityTable.add(e);
+        return e;
+    }
+
     std::shared_ptr<Entity> findEntity(const std::string& id) const {
         return m_entityTable.find(id);
     }

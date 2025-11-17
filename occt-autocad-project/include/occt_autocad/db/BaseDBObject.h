@@ -3,6 +3,7 @@
 #include "DBObject.h"
 #include <string>
 #include "../util/UUID.h"
+#include <nlohmann/json.hpp>
 
 namespace occt_autocad {
 namespace db {
@@ -26,26 +27,27 @@ public:
     }
 
     std::string serialize() const override {
-        // very small key=value;key=value format for now
-        return std::string("id=") + m_id + ";layer=" + m_layer + ";color=" + std::to_string(m_color);
+        nlohmann::json j;
+        j["id"] = m_id;
+        j["layer"] = m_layer;
+        j["color"] = m_color;
+        j["x"] = m_x;
+        j["y"] = m_y;
+        j["rotation"] = m_rotation;
+        return j.dump();
     }
 
     void deserialize(const std::string& data) override {
-        // parse simple key=value; pairs
-        size_t start = 0;
-        while (start < data.size()) {
-            auto pos = data.find(';', start);
-            std::string token = data.substr(start, (pos==std::string::npos)?std::string::npos:pos-start);
-            auto eq = token.find('=');
-            if (eq != std::string::npos) {
-                std::string k = token.substr(0, eq);
-                std::string v = token.substr(eq+1);
-                if (k == "id") m_id = v;
-                else if (k == "layer") m_layer = v;
-                else if (k == "color") m_color = std::stoi(v);
-            }
-            if (pos == std::string::npos) break;
-            start = pos + 1;
+        try {
+            auto j = nlohmann::json::parse(data);
+            if (j.contains("id")) m_id = j["id"].get<std::string>();
+            if (j.contains("layer")) m_layer = j["layer"].get<std::string>();
+            if (j.contains("color")) m_color = j["color"].get<int>();
+            if (j.contains("x")) m_x = j["x"].get<double>();
+            if (j.contains("y")) m_y = j["y"].get<double>();
+            if (j.contains("rotation")) m_rotation = j["rotation"].get<double>();
+        } catch (...) {
+            // ignore parse errors for now
         }
     }
 
