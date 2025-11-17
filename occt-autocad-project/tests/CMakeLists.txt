@@ -1,28 +1,29 @@
-project(TestOCCT)
+cmake_minimum_required(VERSION 3.14)
 
-cmake_minimum_required(VERSION 3.10)
+project(occt_autocad_tests LANGUAGES CXX)
 
-# Specify the C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/../include)
 
-# Add the test source files
+# Collect test sources
 set(TEST_SOURCES
-    test_document.cpp
+        test_document.cpp
+        test_db.cpp
 )
 
-# Create the test executable
+# Fetch Catch2 if not available
+include(FetchContent)
+FetchContent_Declare(
+    catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v2.13.10
+)
+FetchContent_MakeAvailable(catch2)
+
 add_executable(TestOCCT ${TEST_SOURCES})
+target_include_directories(TestOCCT PRIVATE ${catch2_SOURCE_DIR}/single_include)
 
-# Link with the OCCT library
-find_package(OCCT REQUIRED)
-target_link_libraries(TestOCCT ${OCCT_LIBRARIES})
-
-# Enable testing
 enable_testing()
-
-# Add tests
-add_test(NAME TestDocument COMMAND TestOCCT)
+add_test(NAME TestOCCT COMMAND TestOCCT)

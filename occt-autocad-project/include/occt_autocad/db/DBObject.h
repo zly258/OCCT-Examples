@@ -24,5 +24,6 @@ public:
     virtual void deserialize(const std::string& data) = 0;
 };
 
+
 } // namespace db
 } // namespace occt_autocad
