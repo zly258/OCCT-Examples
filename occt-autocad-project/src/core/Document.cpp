@@ -1,30 +1,20 @@
 #include "Document.h"
 
-Document::Document() {
-    // Constructor implementation
-}
+namespace occt_autocad {
+namespace core {
 
-Document::~Document() {
-    // Destructor implementation
-}
+Document::Document(const std::string& title)
+    : m_title(title), m_db(), m_cmdMgr() {}
+
+Document::~Document() = default;
 
 void Document::load(const std::string& filename) {
-    // Load document from file
+    // TODO: implement load using Database serialization
 }
 
-void Document::save(const std::string& filename) {
-    // Save document to file
+void Document::save(const std::string& filename) const {
+    // TODO: implement save using Database serialization
 }
 
-void Document::addObject(const Object& obj) {
-    // Add object to the document
-}
-
-void Document::removeObject(const Object& obj) {
-    // Remove object from the document
-}
-
-std::vector<Object> Document::getObjects() const {
-    // Return all objects in the document
-    return objects;
-}
+} // namespace core
+} // namespace occt_autocad

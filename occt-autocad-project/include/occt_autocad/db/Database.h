@@ -32,6 +32,10 @@ public:
         m_entityTable.remove(id);
     }
 
+    std::vector<std::shared_ptr<Entity>> allEntities() const {
+        return m_entityTable.all();
+    }
+
     // TODO: 事务、commit/rollback、serialization 辅助
 
 private:

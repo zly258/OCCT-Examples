@@ -8,10 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_SOURCE_DIR}/../include)
 
 # Collect test sources
-set(TEST_SOURCES
-        test_document.cpp
-        test_db.cpp
-)
+file(GLOB TEST_SOURCES LIST_DIRECTORIES OFF "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 # Fetch Catch2 if not available
 include(FetchContent)

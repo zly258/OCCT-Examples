@@ -55,10 +55,20 @@ public:
     void setColor(int c) { m_color = c; }
     int color() const { return m_color; }
 
+    // transform helpers (2D for now)
+    void setPosition(double x, double y) { m_x = x; m_y = y; }
+    void moveBy(double dx, double dy) { m_x += dx; m_y += dy; }
+    std::pair<double,double> position() const { return {m_x, m_y}; }
+    void setRotation(double r) { m_rotation = r; }
+    double rotation() const { return m_rotation; }
+
 protected:
     std::string m_id;
     std::string m_layer;
     int m_color;
+    double m_x = 0.0;
+    double m_y = 0.0;
+    double m_rotation = 0.0; // degrees
 };
 
 } // namespace db
