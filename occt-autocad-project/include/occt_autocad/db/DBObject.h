@@ -22,6 +22,8 @@ public:
     // 简单序列化接口（可扩展为二进制或 JSON）
     virtual std::string serialize() const = 0;
     virtual void deserialize(const std::string& data) = 0;
+    // Return runtime type name for factory/serialization
+    virtual std::string typeName() const { return "DBObject"; }
 };
 
 

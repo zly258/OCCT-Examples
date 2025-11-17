@@ -13,7 +13,17 @@ void Document::load(const std::string& filename) {
 }
 
 void Document::save(const std::string& filename) const {
-    // TODO: implement save using Database serialization
+    // Save database entities and undo history to JSON file
+    try {
+        nlohmann::json root;
+        root["entities"] = nlohmann::json::parse(m_db.serialize());
+        // serialize history
+        root["history"] = m_cmdMgr.serializeHistory();
+        std::ofstream ofs(filename);
+        ofs << root.dump(2);
+    } catch(...) {
+        // ignore errors for now
+    }
 }
 
 } // namespace core

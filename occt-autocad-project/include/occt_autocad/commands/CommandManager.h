@@ -14,6 +14,15 @@ public:
 
     bool executeCommand(const Command::Ptr& cmd) {
         if (!cmd) return false;
+        if (!m_undoStack.empty() && m_undoStack.back()->canMergeWith(cmd)) {
+            // execute and then merge into previous
+            if (cmd->execute()) {
+                m_undoStack.back()->mergeWith(cmd);
+                m_redoStack.clear();
+                return true;
+            }
+            return false;
+        }
         if (cmd->execute()) {
             m_undoStack.push_back(cmd);
             // clear redo stack
@@ -22,6 +31,15 @@ public:
             return true;
         }
         return false;
+    }
+
+    // serialize undo history into JSON array
+    nlohmann::json serializeHistory() const {
+        nlohmann::json arr = nlohmann::json::array();
+        for (auto &c : m_undoStack) {
+            try { arr.push_back(c->serialize()); } catch(...) {}
+        }
+        return arr;
     }
 
     bool canUndo() const { return !m_undoStack.empty(); }

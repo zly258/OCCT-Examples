@@ -14,6 +14,11 @@ public:
     virtual bool execute() = 0;
     // 撤销命令
     virtual void undo() = 0;
+    // optional merge support
+    virtual bool canMergeWith(const Ptr& other) const { return false; }
+    virtual void mergeWith(const Ptr& other) {}
+    // optional serialization for history persistence
+    virtual nlohmann::json serialize() const { return nlohmann::json(); }
 };
 
 } // namespace commands

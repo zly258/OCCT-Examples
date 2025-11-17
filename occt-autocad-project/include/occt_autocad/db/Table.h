@@ -38,6 +38,12 @@ public:
         m_objects.erase(id);
     }
 
+    // insert object directly (useful for restoring deleted items with original id)
+    void insert(const ObjectPtr& obj) {
+        if (!obj) return;
+        m_objects.emplace(obj->id(), obj);
+    }
+
 private:
     std::unordered_map<std::string, ObjectPtr> m_objects;
 };

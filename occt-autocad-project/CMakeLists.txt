@@ -1,17 +1,24 @@
-project(OCCT_AutoCAD_Project)
+cmake_minimum_required(VERSION 3.14)
 
-cmake_minimum_required(VERSION 3.10)
+project(OCCT_AutoCAD_Project LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Specify the OCCT library path
-set(OCCT_DIR "path/to/occt")
+# Specify the OCCT library path (override via -DOCCT_DIR=... when invoking cmake)
+set(OCCT_DIR "path/to/occt" CACHE PATH "Path to OCCT installation")
 
-# Find OCCT package
 find_package(OCCT REQUIRED)
-
 include_directories(${OCCT_INCLUDE_DIR})
+
+# FetchContent for nlohmann/json so main target can use JSON serialization too
+include(FetchContent)
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Add source files
 file(GLOB_RECURSE SOURCES
@@ -25,7 +32,7 @@ include_directories(include)
 add_executable(occt_autocad ${SOURCES})
 
 # Link OCCT libraries
-target_link_libraries(occt_autocad ${OCCT_LIBRARIES})
+target_link_libraries(occt_autocad PRIVATE ${OCCT_LIBRARIES} nlohmann_json::nlohmann_json)
 
 # Set the output directory for the executable
 set_target_properties(occt_autocad PROPERTIES

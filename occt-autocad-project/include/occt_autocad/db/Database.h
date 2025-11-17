@@ -5,6 +5,11 @@
 #include <unordered_map>
 #include "Table.h"
 #include "Entity.h"
+#include "LineEntity.h"
+#include "CircleEntity.h"
+#include "ArcEntity.h"
+#include "PolylineEntity.h"
+#include "TextEntity.h"
 
 namespace occt_autocad {
 namespace db {
@@ -42,6 +47,23 @@ public:
 
     std::vector<std::shared_ptr<Entity>> allEntities() const {
         return m_entityTable.all();
+    }
+
+    // insert an existing entity (keeps its id)
+    void insertEntity(const std::shared_ptr<Entity>& e) {
+        m_entityTable.insert(e);
+    }
+
+    // Factory to create entity instance by type with a specific id
+    std::shared_ptr<Entity> createEntityOfTypeWithId(const std::string& type, const std::string& id) {
+        if (type == "SimpleEntity") return createEntityWithId<SimpleEntity>(id);
+        if (type == "Line") return createEntityWithId<LineEntity>(id);
+        if (type == "Circle") return createEntityWithId<CircleEntity>(id);
+        if (type == "Arc") return createEntityWithId<ArcEntity>(id);
+        if (type == "Polyline") return createEntityWithId<PolylineEntity>(id);
+        if (type == "Text") return createEntityWithId<TextEntity>(id);
+        // default fallback
+        return createEntityWithId<SimpleEntity>(id);
     }
 
     // TODO: 事务、commit/rollback、serialization 辅助

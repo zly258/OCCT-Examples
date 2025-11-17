@@ -16,6 +16,9 @@ public:
         if (!e) return false;
         // store serialized state for undo
         m_saved = e->serialize();
+        // also store type
+        try { auto j = nlohmann::json::parse(m_saved); if (j.contains("type")) m_type = j["type"].get<std::string>(); }
+        catch(...){}
         m_db.eraseEntity(m_id);
         return true;
     }
@@ -31,6 +34,7 @@ private:
     db::Database& m_db;
     std::string m_id;
     std::string m_saved;
+    std::string m_type;
 };
 
 } // namespace commands
